@@ -1,5 +1,7 @@
 package game
 
+import "log"
+
 type Mark int
 
 const (
@@ -7,6 +9,20 @@ const (
 	X
 	O
 )
+
+var lines = [][][2]int{
+	// rows
+	{{0, 0}, {0, 1}, {0, 2}},
+	{{1, 0}, {1, 1}, {1, 2}},
+	{{2, 0}, {2, 1}, {2, 2}},
+	// col
+	{{0, 0}, {1, 0}, {2, 0}},
+	{{0, 1}, {1, 1}, {2, 1}},
+	{{0, 2}, {1, 2}, {2, 2}},
+	//diag
+	{{0, 0}, {1, 1}, {2, 2}},
+	{{0, 2}, {1, 1}, {2, 0}},
+}
 
 type Board struct {
 	cells [3][3]Mark
@@ -28,12 +44,11 @@ func (b *Board) ApplyMove(r, c int, mark Mark) bool {
 }
 
 func (b *Board) CheckWinner() (bool, Mark) {
-	for r := 0; r <= 2; r++ {
-		for c := 0; c <= 2; c++ {
-			if b.cells[r][c] != Empty {
-				continue
-			}
-
+	log.Println(b.cells)
+	for _, line := range lines {
+		win, mark := b.checkLine(line)
+		if win {
+			return win, mark
 		}
 	}
 
@@ -47,4 +62,29 @@ func (b *Board) Reset() {
 		}
 	}
 	b.moves = 0
+}
+
+func (b *Board) checkLine(line [][2]int) (bool, Mark) {
+	origin := line[0]
+	mark := b.cells[origin[0]][origin[1]]
+
+	log.Println(line)
+	log.Println(origin)
+	log.Println(mark)
+	log.Println("----")
+
+	if mark == Empty {
+		return false, Empty
+	}
+
+	for _, point := range line {
+		r := point[0]
+		c := point[1]
+
+		if b.cells[r][c] != mark {
+			return false, Empty
+		}
+	}
+
+	return true, mark
 }
