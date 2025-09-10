@@ -1,8 +1,15 @@
 package game
 
 import (
-	"fmt"
+	"errors"
 	"log"
+)
+
+var (
+	ErrOccupied    = errors.New("cell already occupied")
+	ErrOutOfBounds = errors.New("cell out of bounds")
+	ErrGameOver    = errors.New("game already finished")
+	ErrEmptyMove   = errors.New("empty move")
 )
 
 type Mark int
@@ -38,15 +45,15 @@ type Board struct {
 
 func (b *Board) ApplyMove(r, c int, m Mark) (ApplyResult, error) {
 	if m == Empty {
-		return ApplyResult{}, fmt.Errorf("move is empty")
+		return ApplyResult{}, ErrEmptyMove
 	}
 
 	if !inBounds(r, c) {
-		return ApplyResult{}, fmt.Errorf("invalid move: {%d, %d}", r, c)
+		return ApplyResult{}, ErrOutOfBounds
 	}
 
 	if b.cells[r][c] != Empty {
-		return ApplyResult{}, fmt.Errorf("invalid move: {%d, %d} already contains a m", r, c)
+		return ApplyResult{}, ErrOccupied
 	}
 
 	b.cells[r][c] = m
@@ -73,7 +80,7 @@ func (b *Board) ApplyMove(r, c int, m Mark) (ApplyResult, error) {
 	return ApplyResult{}, nil
 }
 
-func (b *Board) State() GameStatus {
+func (b *Board) State() State {
 	won, _, _ := b.CheckWinner()
 	if won {
 		return Won
