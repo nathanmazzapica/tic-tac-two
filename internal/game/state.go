@@ -1,15 +1,15 @@
 package game
 
-type GameStatus int
+type State int
 
 const (
-	InProgress GameStatus = iota
+	InProgress State = iota
 	Won
 	Draw
 )
 
 type ApplyResult struct {
-	GameStatus GameStatus
+	GameStatus State
 	Winner     Mark
 	Line       Line
 }
