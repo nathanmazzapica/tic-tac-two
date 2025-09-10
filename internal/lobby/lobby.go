@@ -8,7 +8,7 @@ type Lobby struct {
 	Board         game.Board
 	Id            string
 	Turn          game.Mark
-	State         game.State
+	State         game.GameStatus
 	Outcome       game.Outcome
 	//connsById		map[string]*ws.Conn
 }

@@ -5,6 +5,8 @@ import (
 	"testing"
 )
 
+// TODO: Rewrite everything here ☹️
+
 func TestApplyGoodMove(t *testing.T) {
 	board := Board{[3][3]Mark{}, 0}
 	assert.Equal(t, true, board.ApplyMove(2, 2, O))
@@ -92,6 +94,19 @@ func TestNoWin(t *testing.T) {
 	board.ApplyMove(1, 1, O)
 	board.ApplyMove(2, 1, O)
 
+	type outcome struct {
+		Win  bool
+		Mark Mark
+		Line [][2]int
+	}
+
+	expected := outcome{false, Empty}
+	win, mark, line := board.CheckWinner()
+	assert.Equal(t, expected, outcome{win, mark})
+}
+
+func TestEmptyBoardWin(t *testing.T) {
+	board := Board{[3][3]Mark{}, 0}
 	type outcome struct {
 		Win  bool
 		Mark Mark

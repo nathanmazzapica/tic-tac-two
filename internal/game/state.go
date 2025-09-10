@@ -1,26 +1,19 @@
 package game
 
-type State int
+type GameStatus int
 
 const (
-	Idle State = iota
-	Waiting
-	InProgress
-	Terminal
-	Closed
+	InProgress GameStatus = iota
+	Won
+	Draw
 )
 
-type Method string
+type ApplyResult struct {
+	GameStatus GameStatus
+	Winner     Mark
+	Line       Line
+}
 
-const (
-	ThreeInARow Method = "win"
-	Drawn       Method = "draw"
-	Forfeit     Method = "forfeit"
-	Timeout     Method = "timeout"
-)
-
-type Outcome struct {
-	Winner Mark
-	Method Method
-	Line   string
+func (r ApplyResult) Terminal() bool {
+	return r.GameStatus != InProgress
 }

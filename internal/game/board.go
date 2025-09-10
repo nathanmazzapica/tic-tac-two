@@ -1,6 +1,9 @@
 package game
 
-import "log"
+import (
+	"fmt"
+	"log"
+)
 
 type Mark int
 
@@ -10,7 +13,11 @@ const (
 	O
 )
 
-var lines = [][][2]int{
+const boardSize = 3
+
+type Line [][2]int
+
+var lines = []Line{
 	// rows
 	{{0, 0}, {0, 1}, {0, 2}},
 	{{1, 0}, {1, 1}, {1, 2}},
@@ -29,30 +36,65 @@ type Board struct {
 	moves uint8
 }
 
-func (b *Board) ApplyMove(r, c int, mark Mark) bool {
-	if b.moves == 9 || (r > 2 || r < 0 || c > 2 || c < 0) {
-		return false
+func (b *Board) ApplyMove(r, c int, m Mark) (ApplyResult, error) {
+	if m == Empty {
+		return ApplyResult{}, fmt.Errorf("move is empty")
+	}
+
+	if !inBounds(r, c) {
+		return ApplyResult{}, fmt.Errorf("invalid move: {%d, %d}", r, c)
 	}
 
 	if b.cells[r][c] != Empty {
-		return false
+		return ApplyResult{}, fmt.Errorf("invalid move: {%d, %d} already contains a m", r, c)
 	}
 
-	b.cells[r][c] = mark
+	b.cells[r][c] = m
 	b.moves++
-	return true
+
+	won, winner, line := b.CheckWinner()
+
+	if won {
+		return ApplyResult{
+			GameStatus: Won,
+			Winner:     winner,
+			Line:       line,
+		}, nil
+	}
+
+	if b.IsFull() {
+		return ApplyResult{
+			GameStatus: Draw,
+			Winner:     Empty,
+			Line:       nil,
+		}, nil
+	}
+
+	return ApplyResult{}, nil
 }
 
-func (b *Board) CheckWinner() (bool, Mark) {
+func (b *Board) State() GameStatus {
+	won, _, _ := b.CheckWinner()
+	if won {
+		return Won
+	}
+
+	if b.IsFull() {
+		return Draw
+	}
+	return InProgress
+}
+
+func (b *Board) CheckWinner() (bool, Mark, Line) {
 	log.Println(b.cells)
 	for _, line := range lines {
 		win, mark := b.checkLine(line)
 		if win {
-			return win, mark
+			return win, mark, line
 		}
 	}
 
-	return false, Empty
+	return false, Empty, nil
 }
 
 func (b *Board) Reset() {
@@ -64,7 +106,15 @@ func (b *Board) Reset() {
 	b.moves = 0
 }
 
-func (b *Board) checkLine(line [][2]int) (bool, Mark) {
+func (b *Board) IsFull() bool {
+	return b.moves == 9
+}
+
+func (b *Board) Cell(r, c int) Mark {
+	return b.cells[r][c]
+}
+
+func (b *Board) checkLine(line Line) (bool, Mark) {
 	origin := line[0]
 	mark := b.cells[origin[0]][origin[1]]
 
@@ -87,4 +137,8 @@ func (b *Board) checkLine(line [][2]int) (bool, Mark) {
 	}
 
 	return true, mark
+}
+
+func inBounds(r, c int) bool {
+	return r >= 0 && r < boardSize && c >= 0 && c < boardSize
 }
