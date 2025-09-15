@@ -16,14 +16,14 @@ const (
 )
 
 var (
-	ErrGameFull     = errors.New("game is full")
-	ErrGameOver     = errors.New("game is over")
-	ErrInvalidToken = errors.New("invalid token")
+	ErrGameFull      = errors.New("game is full")
+	ErrGameOver      = errors.New("game is over")
+	ErrInvalidToken  = errors.New("invalid token")
+	ErrInvalidPlayer = errors.New("invalid player")
 )
 
 type Lobby struct {
 	PlayersBySlot [2]*game.Player
-	PlayersByID   map[string]*game.Player
 	Board         game.Board
 	Id            string
 	Turn          game.Mark
@@ -38,6 +38,7 @@ func (l *Lobby) Start() {}
 
 func (l *Lobby) Tick() {}
 
+// Connect this isn't right. Lobby should take in a ws conn and create a player i think
 func (l *Lobby) Connect(p *game.Player) error {
 	if l.isFull() {
 		return ErrGameFull
@@ -65,7 +66,19 @@ func (l *Lobby) Connect(p *game.Player) error {
 	return nil
 }
 
-func (l *Lobby) Disconnect(p game.Player) error {
+func (l *Lobby) Disconnect(p *game.Player) error {
+	if l.playerById(p.PlayerID) == nil {
+		return ErrInvalidPlayer
+	}
+
+	switch l.State {
+	case WaitingForSecond:
+		l.PlayersBySlot[0] = nil
+		l.State = Idle
+	case InProgress:
+		// Pause game
+		// create reconnect deadline
+	}
 	return nil
 }
 
@@ -81,4 +94,13 @@ func (l *Lobby) playerCount() int {
 
 func (l *Lobby) isFull() bool {
 	return l.playerCount() == 2
+}
+
+func (l *Lobby) playerById(id string) *game.Player {
+	for _, player := range l.PlayersBySlot {
+		if player.PlayerID == id {
+			return player
+		}
+	}
+	return nil
 }
