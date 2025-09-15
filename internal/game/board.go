@@ -2,7 +2,6 @@ package game
 
 import (
 	"errors"
-	"log"
 )
 
 var (
@@ -44,6 +43,9 @@ type Board struct {
 }
 
 func (b *Board) ApplyMove(r, c int, m Mark) (ApplyResult, error) {
+	if state := b.State(); state != InProgress {
+		return ApplyResult{GameStatus: state}, ErrGameOver
+	}
 	if m == Empty {
 		return ApplyResult{}, ErrEmptyMove
 	}
@@ -93,7 +95,6 @@ func (b *Board) State() State {
 }
 
 func (b *Board) CheckWinner() (bool, Mark, Line) {
-	log.Println(b.cells)
 	for _, line := range lines {
 		win, mark := b.checkLine(line)
 		if win {
@@ -124,11 +125,6 @@ func (b *Board) Cell(r, c int) Mark {
 func (b *Board) checkLine(line Line) (bool, Mark) {
 	origin := line[0]
 	mark := b.cells[origin[0]][origin[1]]
-
-	log.Println(line)
-	log.Println(origin)
-	log.Println(mark)
-	log.Println("----")
 
 	if mark == Empty {
 		return false, Empty
