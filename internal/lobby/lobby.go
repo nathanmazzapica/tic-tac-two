@@ -18,7 +18,7 @@ const (
 	Closed // Not sure about keeping this one, maybe for cleanup?
 )
 
-const GRACE_PERIOD = time.Second * 90
+const GracePeriod = time.Second * 90
 
 var (
 	ErrGameFull         = errors.New("game is full")
@@ -125,6 +125,7 @@ func (l *Lobby) handleJoin(cmd Join) {
 			s.reconnectDeadline = time.Time{}
 			l.slots[idx] = s
 			l.n.Broadcast(Reconnected{Slot: idx})
+			l.n.Broadcast(Resumed{})
 			return
 		}
 		l.n.Broadcast(JoinRejected{Reason: "AlreadyStarted"})
@@ -137,8 +138,14 @@ func (l *Lobby) handleLeave(cmd Leave) {
 	case InProgress:
 		s, ok := l.findByPlayer(cmd.PlayerID)
 		if ok {
+			reconnectDeadline := time.Now().Add(GracePeriod)
 			l.slots[s].Connected = false
-			l.slots[s].reconnectDeadline = time.Now().Add(time.Second * 45)
+			l.slots[s].reconnectDeadline = reconnectDeadline
+			l.n.Broadcast(Left{Slot: s})
+			l.n.Broadcast(Paused{
+				MissingSlot: s,
+				Deadline:    reconnectDeadline,
+			})
 		}
 	}
 }

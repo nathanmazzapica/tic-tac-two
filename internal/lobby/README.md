@@ -21,7 +21,9 @@ second goes slot1
 Slot0=X starts; server authoritative; clients send expectedMove
 
 ### Disconnect policy
-On drop set `connected=false`, `reconnectDeadline=30s`. If deadline expires; `Terminal{Forfeit}`
+On drop set `slot.connected=false`, `slot.reconnectDeadline=now+GracePeriod`. If deadline expires; `Terminal{Forfeit}`
+
+If disconnect during WaitingForSecond `WaitingForSecond->Idle`. Start TTL timer for `Lobby`
 
 ### Close Policy
 `Terminal` > close lobby after 30s; both disconnected in `InProgress` > close after 2m idle TTL
