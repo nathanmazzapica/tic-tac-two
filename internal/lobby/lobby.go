@@ -30,22 +30,8 @@ type Lobby struct {
 	ID       string
 	Turn     game.Mark
 	state    State
-	subs     map[string]chan Event
 	commands chan Command
 	n        notifier
-}
-
-func New(opts ...Option) *Lobby {
-	l := &Lobby{
-		commands: make(chan Command, 64),
-		subs:     make(map[string]chan Event),
-		state:    Idle,
-		n:        newTestProbe(),
-	}
-	for _, opt := range opts {
-		opt(l)
-	}
-	return l
 }
 
 func (l *Lobby) Run(ctx context.Context) error {

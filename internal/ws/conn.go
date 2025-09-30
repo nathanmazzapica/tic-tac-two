@@ -2,6 +2,7 @@ package ws
 
 import (
 	"github.com/gorilla/websocket"
+	"github.com/nathanmazzapica/tic-tac-two/internal/lobby"
 	"time"
 )
 
@@ -13,6 +14,16 @@ const (
 )
 
 type Client struct {
+	id   string
 	conn *websocket.Conn
-	send chan []byte
+	send chan<- lobby.Command
+	read <-chan lobby.Event
+}
+
+func New() *Client {
+	return &Client{}
+}
+
+func (c *Client) SetReadChan(read <-chan lobby.Event) {
+	c.read = read
 }

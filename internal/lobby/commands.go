@@ -2,8 +2,6 @@ package lobby
 
 import "github.com/nathanmazzapica/tic-tac-two/internal/game"
 
-// Join, Leave, Move, Forfeit, Tick
-
 type Command interface{ isCommand() }
 
 type Join struct {
