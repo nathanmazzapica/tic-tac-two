@@ -68,6 +68,8 @@ func (l *Lobby) Run(ctx context.Context) error {
 			switch c := cmd.(type) {
 			case Join:
 				l.handleJoin(c)
+			case Leave:
+				l.handleLeave(c)
 			}
 		default:
 			log.Println("unknown command")
@@ -128,6 +130,17 @@ func (l *Lobby) handleJoin(cmd Join) {
 		l.n.Broadcast(JoinRejected{Reason: "AlreadyStarted"})
 	}
 
+}
+
+func (l *Lobby) handleLeave(cmd Leave) {
+	switch l.state {
+	case InProgress:
+		s, ok := l.findByPlayer(cmd.PlayerID)
+		if ok {
+			l.slots[s].Connected = false
+			l.slots[s].reconnectDeadline = time.Now().Add(time.Second * 45)
+		}
+	}
 }
 
 func (l *Lobby) findByPlayer(id string) (int, bool) {
