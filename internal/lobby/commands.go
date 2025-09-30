@@ -31,7 +31,3 @@ type Forfeit struct {
 }
 
 func (Forfeit) isCommand() {}
-
-type Tick struct{}
-
-func (Tick) isCommand() {}
