@@ -121,7 +121,7 @@ func TestBoard_ApplyMove(t *testing.T) {
 			assert.Equal(t, tc.wantErr, err)
 			assert.Equal(t, tc.wantState, res.GameStatus)
 			assert.Equal(t, tc.wantLine, res.Line)
-			log.Println(b.moves)
+			log.Println(b.Moves)
 		})
 	}
 }

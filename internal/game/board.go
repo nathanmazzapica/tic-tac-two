@@ -39,7 +39,7 @@ var lines = []Line{
 
 type Board struct {
 	cells [3][3]Mark
-	moves uint8
+	Moves uint8
 }
 
 func (b *Board) ApplyMove(r, c int, m Mark) (ApplyResult, error) {
@@ -59,7 +59,7 @@ func (b *Board) ApplyMove(r, c int, m Mark) (ApplyResult, error) {
 	}
 
 	b.cells[r][c] = m
-	b.moves++
+	b.Moves++
 
 	won, winner, line := b.CheckWinner()
 
@@ -111,11 +111,11 @@ func (b *Board) Reset() {
 			b.cells[rowIndex][colIndex] = Empty
 		}
 	}
-	b.moves = 0
+	b.Moves = 0
 }
 
 func (b *Board) IsFull() bool {
-	return b.moves == 9
+	return b.Moves == 9
 }
 
 func (b *Board) Cell(r, c int) Mark {
