@@ -39,9 +39,9 @@ func TestBoard_ApplyMove(t *testing.T) {
 		},
 		{
 			name: "already occupied",
-			row:  2, col: 2, mark: X,
+			row:  2, col: 2, mark: O,
 			setup: func(b *Board) {
-				_, _ = b.ApplyMove(2, 2, O)
+				_, _ = b.ApplyMove(2, 2, X)
 			},
 			wantErr:   ErrOccupied,
 			wantState: InProgress,
@@ -113,7 +113,7 @@ func TestBoard_ApplyMove(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			b := Board{}
+			b := Board{ignoreTurnOrder: true}
 			if tc.setup != nil {
 				tc.setup(&b)
 			}
@@ -124,4 +124,23 @@ func TestBoard_ApplyMove(t *testing.T) {
 			log.Println(b.Moves)
 		})
 	}
+}
+
+func TestTurn(t *testing.T) {
+	t.Run("first turn", func(t *testing.T) {
+		b := Board{}
+		assert.Equal(t, b.Turn(), X)
+	})
+
+	t.Run("second turn", func(t *testing.T) {
+		b := Board{}
+		b.ApplyMove(0, 0, X)
+		assert.Equal(t, b.Turn(), O)
+	})
+
+	t.Run("move out of turn", func(t *testing.T) {
+		b := Board{}
+		_, err := b.ApplyMove(0, 0, O)
+		assert.Equal(t, ErrWrongTurn, err)
+	})
 }

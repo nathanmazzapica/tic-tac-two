@@ -2,6 +2,7 @@ package game
 
 import (
 	"errors"
+	"log"
 )
 
 var (
@@ -9,6 +10,7 @@ var (
 	ErrOutOfBounds = errors.New("cell out of bounds")
 	ErrGameOver    = errors.New("game already finished")
 	ErrEmptyMove   = errors.New("empty move")
+	ErrWrongTurn   = errors.New("wrong turn")
 )
 
 type Mark int
@@ -38,8 +40,9 @@ var lines = []Line{
 }
 
 type Board struct {
-	cells [3][3]Mark
-	Moves uint8
+	cells           [3][3]Mark
+	Moves           uint8
+	ignoreTurnOrder bool
 }
 
 func (b *Board) ApplyMove(r, c int, m Mark) (ApplyResult, error) {
@@ -48,6 +51,11 @@ func (b *Board) ApplyMove(r, c int, m Mark) (ApplyResult, error) {
 	}
 	if m == Empty {
 		return ApplyResult{}, ErrEmptyMove
+	}
+
+	if !b.ignoreTurnOrder && b.Turn() != m {
+		log.Println(b.Turn(), m, b.Moves)
+		return ApplyResult{}, ErrWrongTurn
 	}
 
 	if !inBounds(r, c) {
@@ -112,6 +120,13 @@ func (b *Board) Reset() {
 		}
 	}
 	b.Moves = 0
+}
+
+func (b *Board) Turn() Mark {
+	if b.Moves%2 == 0 {
+		return X
+	}
+	return O
 }
 
 func (b *Board) IsFull() bool {

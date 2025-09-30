@@ -2,6 +2,7 @@ package lobby
 
 import (
 	"context"
+	"errors"
 	"github.com/nathanmazzapica/tic-tac-two/internal/game"
 	"reflect"
 	"testing"
@@ -189,6 +190,18 @@ func TestMove(t *testing.T) {
 	l, p, cancel := newInProgressLobbyForTest(t)
 	defer cancel()
 
+	t.Run("out of turn move", func(t *testing.T) {
+		l.Post(Move{
+			R:    0,
+			C:    0,
+			Mark: game.O,
+		})
+
+		expectNext[InvalidMove](t, p.C, func(e InvalidMove) bool {
+			return errors.Is(e.Err, game.ErrWrongTurn)
+		})
+	})
+
 	t.Run("initial move", func(t *testing.T) {
 		l.Post(Move{
 			R:    0,
@@ -199,4 +212,17 @@ func TestMove(t *testing.T) {
 			return e.Mark == game.X && e.R == 0 && e.C == 0
 		})
 	})
+
+	t.Run("move occupied spot", func(t *testing.T) {
+		l.Post(Move{
+			R:    0,
+			C:    0,
+			Mark: game.O,
+		})
+
+		expectNext[InvalidMove](t, p.C, func(e InvalidMove) bool {
+			return errors.Is(e.Err, game.ErrOccupied)
+		})
+	})
+
 }
