@@ -5,8 +5,8 @@
 `{ Winner: X|O|None, Method: Win|Draw|Forfeit|Timeout, Line? }`
 
 ### Buffers & deadlines
-`broadcast=16`
-`send=12` (if full; disconnect)
+`broadcast=64`
+`send=32` (if full; disconnect)
 `writeDeadline=5s`
 `pongTimeout=20s`
 
@@ -39,4 +39,9 @@ If disconnect during WaitingForSecond `WaitingForSecond->Idle`. Start TTL timer 
 
 `Error{code,msg}`
 
+### Considerations for later
+
+- Timeout player after `timeLimit` and -> `Terminal{Forfeit}`
+- Do slots need to be explicitly cleared if a player leaves during `WaitingForSecond` or `Terminal`?
+- Do we need to broadcast anything on `handleLeave()` when `l.state=WaitingForSecond`? Nobody would hear it anyway...
 

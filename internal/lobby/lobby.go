@@ -15,19 +15,12 @@ const (
 	WaitingForSecond
 	InProgress
 	Terminal
-	Closed // Not sure about keeping this one, maybe for cleanup?
 )
 
 const GracePeriod = time.Second * 90
 
 var (
-	ErrGameFull         = errors.New("game is full")
-	ErrAlreadyConnected = errors.New("already connected")
-	ErrGameOver         = errors.New("game is over")
-	// ErrInvalidToken indicates a player attempted to join a InProgress lobby that they were not a member of
-	ErrInvalidToken  = errors.New("invalid token")
-	ErrInvalidPlayer = errors.New("invalid player")
-	ErrStaleVersion  = errors.New("stale version")
+	ErrGameFull = errors.New("game is full")
 )
 
 // Lobby stores players and a board and governs actions taken on the board. It then produces events for WS to consume.
@@ -70,6 +63,8 @@ func (l *Lobby) Run(ctx context.Context) error {
 				l.handleJoin(c)
 			case Leave:
 				l.handleLeave(c)
+			case Move:
+				l.handleMove(c)
 			}
 		default:
 			log.Println("unknown command")
@@ -129,12 +124,22 @@ func (l *Lobby) handleJoin(cmd Join) {
 			return
 		}
 		l.n.Broadcast(JoinRejected{Reason: "AlreadyStarted"})
+	case Terminal:
+		l.n.Broadcast(JoinRejected{Reason: "GameOver"})
 	}
 
 }
 
 func (l *Lobby) handleLeave(cmd Leave) {
 	switch l.state {
+	case Idle:
+		// this shouldn't happen, but i'll guard against... just in case...
+		return
+	case WaitingForSecond:
+		l.state = Idle
+		l.slots[0].PlayerID = ""
+		// TODO: Set TTL
+		l.n.Broadcast(LobbyStateChanged{l.state})
 	case InProgress:
 		s, ok := l.findByPlayer(cmd.PlayerID)
 		if ok {
@@ -147,6 +152,49 @@ func (l *Lobby) handleLeave(cmd Leave) {
 				Deadline:    reconnectDeadline,
 			})
 		}
+	case Terminal:
+		s, ok := l.findByPlayer(cmd.PlayerID)
+		if ok {
+			l.n.Broadcast(Left{Slot: s})
+		}
+	}
+}
+
+func (l *Lobby) handleMove(c Move) {
+	switch l.state {
+	case InProgress:
+		row := c.R
+		col := c.C
+		mark := c.Mark
+		res, err := l.board.ApplyMove(row, col, mark)
+		if err != nil {
+			// move was invalid
+			l.n.Broadcast(InvalidMove{
+				R:   row,
+				C:   col,
+				Err: err,
+			})
+			return
+		}
+
+		// We always need to broadcast move
+		l.n.Broadcast(ValidMove{
+			R:    row,
+			C:    col,
+			Mark: mark,
+		})
+
+		switch res.GameStatus {
+		case game.Won, game.Draw:
+			l.n.Broadcast(GameOver{
+				Method: res.GameStatus,
+				Winner: res.Winner,
+				Line:   res.Line,
+			})
+		}
+	default:
+		// if we are anywhere but InProgress, reject move
+		return
 	}
 }
 

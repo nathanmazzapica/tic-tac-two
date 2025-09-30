@@ -54,6 +54,14 @@ type StateChanged struct {
 
 func (StateChanged) isEvent() {}
 
+type ValidMove struct {
+	R    int `json:"r"`
+	C    int `json:"c"`
+	Mark game.Mark
+}
+
+func (ValidMove) isEvent() {}
+
 type InvalidMove struct {
 	R   int `json:"r"`
 	C   int `json:"c"`
@@ -66,6 +74,10 @@ type Forfeited struct{}
 
 func (Forfeited) isEvent() {}
 
-type GameOver struct{}
+type GameOver struct {
+	Method game.State
+	Winner game.Mark
+	Line   game.Line
+}
 
 func (GameOver) isEvent() {}

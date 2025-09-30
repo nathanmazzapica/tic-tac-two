@@ -17,6 +17,15 @@ func newLobbyForTest(t *testing.T) (*Lobby, *TestProbe, context.CancelFunc) {
 	return l, probe, cancel
 }
 
+func newInProgressLobbyForTest(t *testing.T) (*Lobby, *TestProbe, context.CancelFunc) {
+	t.Helper()
+	probe := &TestProbe{C: make(chan Event, 32)}
+	l := New(WithNotifier(probe), StartInProgress())
+	ctx, cancel := context.WithCancel(context.Background())
+	go l.Run(ctx)
+	return l, probe, cancel
+}
+
 func expectNext[T any](t *testing.T, ch <-chan Event, match func(T) bool) {
 	t.Helper()
 
@@ -154,22 +163,40 @@ func TestReconnect(t *testing.T) {
 		return e.State == InProgress
 	})
 
-	l.Post(Leave{PlayerID: "p2"})
-	expectNext[Left](t, p.C, func(e Left) bool {
-		return e.Slot == 1
-	})
+	t.Run("reconnect", func(t *testing.T) {
+		l.Post(Leave{PlayerID: "p2"})
+		expectNext[Left](t, p.C, func(e Left) bool {
+			return e.Slot == 1
+		})
 
-	expectNext[Paused](t, p.C, func(e Paused) bool {
-		return e.MissingSlot == 1
-	})
+		expectNext[Paused](t, p.C, func(e Paused) bool {
+			return e.MissingSlot == 1
+		})
 
-	l.Post(Join{PlayerID: "p2"})
-	expectNext[Reconnected](t, p.C, func(e Reconnected) bool {
-		return e.Slot == 1
-	})
+		l.Post(Join{PlayerID: "p2"})
+		expectNext[Reconnected](t, p.C, func(e Reconnected) bool {
+			return e.Slot == 1
+		})
 
-	expectNext[Resumed](t, p.C, func(e Resumed) bool {
-		return true
-	})
+		expectNext[Resumed](t, p.C, func(e Resumed) bool {
+			return true
+		})
 
+	})
+}
+
+func TestMove(t *testing.T) {
+	l, p, cancel := newInProgressLobbyForTest(t)
+	defer cancel()
+
+	t.Run("initial move", func(t *testing.T) {
+		l.Post(Move{
+			R:    0,
+			C:    0,
+			Mark: game.X,
+		})
+		expectNext[ValidMove](t, p.C, func(e ValidMove) bool {
+			return e.Mark == game.X && e.R == 0 && e.C == 0
+		})
+	})
 }
