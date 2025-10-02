@@ -4,6 +4,8 @@ import "fmt"
 
 type notifier interface {
 	Broadcast(Event)
+	Add(id string, ch chan Event)
+	Remove(id string)
 }
 
 type TestProbe struct {
@@ -17,6 +19,9 @@ func newTestProbe() *TestProbe {
 func (p *TestProbe) Broadcast(e Event) {
 	p.C <- e
 }
+
+func (p *TestProbe) Add(id string, ch chan Event) {}
+func (p *TestProbe) Remove(id string)             {}
 
 type fanoutNotifier struct {
 	subscribers map[string]chan Event
@@ -39,8 +44,11 @@ func (n *fanoutNotifier) Broadcast(e Event) {
 	}
 }
 
-func (n *fanoutNotifier) Subscribe(id string) <-chan Event {
-	ch := make(chan Event, n.bufferSize)
-	n.subscribers[id] = ch
-	return ch
+func (n *fanoutNotifier) Add(id string, ch chan Event) { n.subscribers[id] = ch }
+
+func (n *fanoutNotifier) Remove(id string) {
+	if ch, ok := n.subscribers[id]; ok {
+		close(ch)
+		delete(n.subscribers, id)
+	}
 }

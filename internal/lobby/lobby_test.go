@@ -12,7 +12,7 @@ import (
 func newLobbyForTest(t *testing.T) (*Lobby, *TestProbe, context.CancelFunc) {
 	t.Helper()
 	probe := &TestProbe{C: make(chan Event, 32)}
-	l := New(WithNotifier(probe))
+	l := newLobby(WithNotifier(probe))
 	ctx, cancel := context.WithCancel(context.Background())
 	go l.Run(ctx)
 	return l, probe, cancel
@@ -21,7 +21,7 @@ func newLobbyForTest(t *testing.T) (*Lobby, *TestProbe, context.CancelFunc) {
 func newInProgressLobbyForTest(t *testing.T) (*Lobby, *TestProbe, context.CancelFunc) {
 	t.Helper()
 	probe := &TestProbe{C: make(chan Event, 32)}
-	l := New(WithNotifier(probe), StartInProgress())
+	l := newLobby(WithNotifier(probe), StartInProgress())
 	ctx, cancel := context.WithCancel(context.Background())
 	go l.Run(ctx)
 	return l, probe, cancel

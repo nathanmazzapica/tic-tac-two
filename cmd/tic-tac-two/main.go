@@ -1,12 +1,18 @@
 package main
 
 import (
+	"fmt"
+	"github.com/nathanmazzapica/tic-tac-two/internal/lobby"
 	"html/template"
 	"log"
 	"net/http"
 )
 
 func main() {
+	lobbyStore := lobby.NewStore()
+	l := lobbyStore.New()
+	fmt.Println(l)
+
 	// Serve static files
 	fs := http.FileServer(http.Dir("static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))

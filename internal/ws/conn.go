@@ -1,8 +1,8 @@
 package ws
 
 import (
+	"context"
 	"github.com/gorilla/websocket"
-	"github.com/nathanmazzapica/tic-tac-two/internal/lobby"
 	"time"
 )
 
@@ -14,16 +14,25 @@ const (
 )
 
 type Client struct {
-	id   string
-	conn *websocket.Conn
-	send chan<- lobby.Command
-	read <-chan lobby.Event
+	id     string
+	conn   *websocket.Conn
+	cmds   CommandSink
+	events <-chan any
 }
 
-func New() *Client {
-	return &Client{}
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
 }
 
-func (c *Client) SetReadChan(read <-chan lobby.Event) {
-	c.read = read
+func NewClient(id string, conn *websocket.Conn, sink CommandSink, sub <-chan any) *Client {
+	return &Client{id: id, conn: conn, cmds: sink, events: sub}
+}
+
+func (c *Client) Listen(ctx context.Context) error {
+	return nil
+}
+
+func (c *Client) readPump(ctx context.Context) {
+
 }

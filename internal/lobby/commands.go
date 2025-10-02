@@ -29,3 +29,16 @@ type Forfeit struct {
 }
 
 func (Forfeit) isCommand() {}
+
+type AddSub struct {
+	ID string
+	Ch chan Event
+}
+
+func (AddSub) isCommand() {}
+
+type RemSub struct {
+	ID string
+}
+
+func (RemSub) isCommand() {}

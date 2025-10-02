@@ -2,7 +2,6 @@ package lobby
 
 import (
 	"context"
-	"errors"
 	"github.com/nathanmazzapica/tic-tac-two/internal/game"
 	"log"
 	"time"
@@ -19,10 +18,6 @@ const (
 
 const GracePeriod = time.Second * 90
 
-var (
-	ErrGameFull = errors.New("game is full")
-)
-
 // Lobby stores players and a board and governs actions taken on the board. It then produces events for WS to consume.
 type Lobby struct {
 	slots    [2]Slot
@@ -32,6 +27,20 @@ type Lobby struct {
 	state    State
 	commands chan Command
 	n        notifier
+}
+
+// newLobby is the internal function for creating a new lobby with specified options
+func newLobby(opts ...Option) *Lobby {
+	l := &Lobby{
+		commands: make(chan Command, 64),
+		state:    Idle,
+		n:        newFanoutNotifier(),
+	}
+	for _, opt := range opts {
+		opt(l)
+	}
+
+	return l
 }
 
 func (l *Lobby) Run(ctx context.Context) error {
@@ -45,6 +54,10 @@ func (l *Lobby) Run(ctx context.Context) error {
 				return nil
 			}
 			switch c := cmd.(type) {
+			case AddSub:
+				l.n.Add(c.ID, c.Ch)
+			case RemSub:
+				l.n.Remove(c.ID)
 			case Join:
 				l.handleJoin(c)
 			case Leave:
@@ -59,6 +72,16 @@ func (l *Lobby) Run(ctx context.Context) error {
 }
 
 func (l *Lobby) Post(cmd Command) { l.commands <- cmd }
+
+func (l *Lobby) Subscribe(id string) <-chan Event {
+	ch := make(chan Event, 32)
+	l.Post(AddSub{ID: id, Ch: ch})
+	return ch
+}
+
+func (l *Lobby) Unsubscribe(id string) {
+	l.Post(RemSub{ID: id})
+}
 
 func (l *Lobby) handleJoin(cmd Join) {
 	switch l.state {
