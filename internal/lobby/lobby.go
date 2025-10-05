@@ -2,8 +2,9 @@ package lobby
 
 import (
 	"context"
+	"fmt"
+	"github.com/nathanmazzapica/tic-tac-two/internal/dto"
 	"github.com/nathanmazzapica/tic-tac-two/internal/game"
-	"log"
 	"time"
 )
 
@@ -14,6 +15,7 @@ const (
 	WaitingForSecond
 	InProgress
 	Terminal
+	Closed
 )
 
 const GracePeriod = time.Second * 90
@@ -25,14 +27,14 @@ type Lobby struct {
 	ID       string
 	Turn     game.Mark
 	state    State
-	commands chan Command
+	commands chan dto.Command
 	n        notifier
 }
 
 // newLobby is the internal function for creating a new lobby with specified options
 func newLobby(opts ...Option) *Lobby {
 	l := &Lobby{
-		commands: make(chan Command, 64),
+		commands: make(chan dto.Command, 64),
 		state:    Idle,
 		n:        newFanoutNotifier(),
 	}
@@ -50,55 +52,61 @@ func (l *Lobby) Run(ctx context.Context) error {
 			return ctx.Err()
 
 		case cmd, ok := <-l.commands:
+			fmt.Println("yep")
 			if !ok {
 				return nil
 			}
 			switch c := cmd.(type) {
-			case AddSub:
+			case dto.AddSub:
 				l.n.Add(c.ID, c.Ch)
-			case RemSub:
+			case dto.RemSub:
 				l.n.Remove(c.ID)
-			case Join:
+			case dto.Join:
 				l.handleJoin(c)
-			case Leave:
+			case dto.Leave:
 				l.handleLeave(c)
-			case Move:
+			case dto.Move:
 				l.handleMove(c)
+			default:
+				fmt.Println("unknown command")
 			}
-		default:
-			log.Println("unknown command")
 		}
 	}
 }
 
-func (l *Lobby) Post(cmd Command) { l.commands <- cmd }
+func (l *Lobby) Post(cmd dto.Command) { l.commands <- cmd }
 
-func (l *Lobby) Subscribe(id string) <-chan Event {
-	ch := make(chan Event, 32)
-	l.Post(AddSub{ID: id, Ch: ch})
+func (l *Lobby) Sink() chan<- dto.Command {
+	return l.commands
+}
+
+func (l *Lobby) Subscribe(id string) <-chan dto.Event {
+	ch := make(chan dto.Event, 32)
+	l.Post(dto.AddSub{ID: id, Ch: ch})
 	return ch
 }
 
 func (l *Lobby) Unsubscribe(id string) {
-	l.Post(RemSub{ID: id})
+	l.Post(dto.RemSub{ID: id})
 }
 
-func (l *Lobby) handleJoin(cmd Join) {
+func (l *Lobby) handleJoin(cmd dto.Join) {
+	fmt.Println("join!")
 	switch l.state {
 	case Idle:
 		if l.slots[0].Occupied() {
-			l.n.Broadcast(JoinRejected{Reason: "CorruptState"})
+			l.n.Broadcast(dto.JoinRejected{Reason: "CorruptState"})
 			return
 		}
 
 		l.slots[0] = Slot{PlayerID: cmd.PlayerID, Mark: game.X, Connected: true}
 		l.state = WaitingForSecond
-		l.n.Broadcast(Joined{Slot: 0, Mark: game.X})
-		l.n.Broadcast(LobbyStateChanged{State: l.state})
+		l.n.Broadcast(dto.Joined{Slot: 0, Mark: int(game.X)})
+		l.n.Broadcast(dto.LobbyStateChanged{State: int(l.state)})
 
 	case WaitingForSecond:
 		if !l.slots[0].Occupied() || l.slots[1].Occupied() {
-			l.n.Broadcast(JoinRejected{Reason: "CorruptState"})
+			l.n.Broadcast(dto.JoinRejected{Reason: "CorruptState"})
 			return
 		}
 
@@ -108,7 +116,7 @@ func (l *Lobby) handleJoin(cmd Join) {
 			s.Connected = true
 			s.reconnectDeadline = time.Time{}
 			l.slots[idx] = s
-			l.n.Broadcast(Reconnected{Slot: idx})
+			l.n.Broadcast(dto.Reconnected{Slot: idx})
 			return
 		}
 
@@ -116,11 +124,11 @@ func (l *Lobby) handleJoin(cmd Join) {
 		if !l.slots[1].Occupied() {
 			l.slots[1] = Slot{PlayerID: cmd.PlayerID, Mark: game.O, Connected: true}
 			l.state = InProgress
-			l.n.Broadcast(Joined{Slot: 1, Mark: game.O})
-			l.n.Broadcast(LobbyStateChanged{State: l.state})
+			l.n.Broadcast(dto.Joined{Slot: 1, Mark: int(game.O)})
+			l.n.Broadcast(dto.LobbyStateChanged{State: int(l.state)})
 			return
 		}
-		l.n.Broadcast(JoinRejected{Reason: "LobbyFull"})
+		l.n.Broadcast(dto.JoinRejected{Reason: "LobbyFull"})
 
 	case InProgress:
 		if idx, ok := l.findByPlayer(cmd.PlayerID); ok {
@@ -128,18 +136,18 @@ func (l *Lobby) handleJoin(cmd Join) {
 			s.Connected = true
 			s.reconnectDeadline = time.Time{}
 			l.slots[idx] = s
-			l.n.Broadcast(Reconnected{Slot: idx})
-			l.n.Broadcast(Resumed{})
+			l.n.Broadcast(dto.Reconnected{Slot: idx})
+			l.n.Broadcast(dto.Resumed{})
 			return
 		}
-		l.n.Broadcast(JoinRejected{Reason: "AlreadyStarted"})
+		l.n.Broadcast(dto.JoinRejected{Reason: "AlreadyStarted"})
 	case Terminal:
-		l.n.Broadcast(JoinRejected{Reason: "GameOver"})
+		l.n.Broadcast(dto.JoinRejected{Reason: "GameOver"})
 	}
 
 }
 
-func (l *Lobby) handleLeave(cmd Leave) {
+func (l *Lobby) handleLeave(cmd dto.Leave) {
 	switch l.state {
 	case Idle:
 		// this shouldn't happen, but i'll guard against... just in case...
@@ -148,15 +156,15 @@ func (l *Lobby) handleLeave(cmd Leave) {
 		l.state = Idle
 		l.slots[0].PlayerID = ""
 		// TODO: Set TTL
-		l.n.Broadcast(LobbyStateChanged{l.state})
+		l.n.Broadcast(dto.LobbyStateChanged{int(l.state)})
 	case InProgress:
 		s, ok := l.findByPlayer(cmd.PlayerID)
 		if ok {
 			reconnectDeadline := time.Now().Add(GracePeriod)
 			l.slots[s].Connected = false
 			l.slots[s].reconnectDeadline = reconnectDeadline
-			l.n.Broadcast(Left{Slot: s})
-			l.n.Broadcast(Paused{
+			l.n.Broadcast(dto.Left{Slot: s})
+			l.n.Broadcast(dto.Paused{
 				MissingSlot: s,
 				Deadline:    reconnectDeadline,
 			})
@@ -164,21 +172,21 @@ func (l *Lobby) handleLeave(cmd Leave) {
 	case Terminal:
 		s, ok := l.findByPlayer(cmd.PlayerID)
 		if ok {
-			l.n.Broadcast(Left{Slot: s})
+			l.n.Broadcast(dto.Left{Slot: s})
 		}
 	}
 }
 
-func (l *Lobby) handleMove(c Move) {
+func (l *Lobby) handleMove(c dto.Move) {
 	switch l.state {
 	case InProgress:
 		row := c.R
 		col := c.C
 		mark := c.Mark
-		res, err := l.board.ApplyMove(row, col, mark)
+		res, err := l.board.ApplyMove(row, col, game.Mark(mark))
 		if err != nil {
 			// move was invalid
-			l.n.Broadcast(InvalidMove{
+			l.n.Broadcast(dto.InvalidMove{
 				R:   row,
 				C:   col,
 				Err: err,
@@ -187,17 +195,17 @@ func (l *Lobby) handleMove(c Move) {
 		}
 
 		// We always need to broadcast move
-		l.n.Broadcast(ValidMove{
+		l.n.Broadcast(dto.ValidMove{
 			R:    row,
 			C:    col,
-			Mark: mark,
+			Mark: int(mark),
 		})
 
 		switch res.GameStatus {
 		case game.Won, game.Draw:
-			l.n.Broadcast(GameOver{
-				Method: res.GameStatus,
-				Winner: res.Winner,
+			l.n.Broadcast(dto.GameOver{
+				Method: int(res.GameStatus),
+				Winner: int(res.Winner),
 				Line:   res.Line,
 			})
 		}

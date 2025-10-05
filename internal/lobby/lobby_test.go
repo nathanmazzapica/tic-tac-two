@@ -3,6 +3,7 @@ package lobby
 import (
 	"context"
 	"errors"
+	"github.com/nathanmazzapica/tic-tac-two/internal/dto"
 	"github.com/nathanmazzapica/tic-tac-two/internal/game"
 	"reflect"
 	"testing"
@@ -11,7 +12,7 @@ import (
 
 func newLobbyForTest(t *testing.T) (*Lobby, *TestProbe, context.CancelFunc) {
 	t.Helper()
-	probe := &TestProbe{C: make(chan Event, 32)}
+	probe := &TestProbe{C: make(chan dto.Event, 32)}
 	l := newLobby(WithNotifier(probe))
 	ctx, cancel := context.WithCancel(context.Background())
 	go l.Run(ctx)
@@ -20,14 +21,14 @@ func newLobbyForTest(t *testing.T) (*Lobby, *TestProbe, context.CancelFunc) {
 
 func newInProgressLobbyForTest(t *testing.T) (*Lobby, *TestProbe, context.CancelFunc) {
 	t.Helper()
-	probe := &TestProbe{C: make(chan Event, 32)}
+	probe := &TestProbe{C: make(chan dto.Event, 32)}
 	l := newLobby(WithNotifier(probe), StartInProgress())
 	ctx, cancel := context.WithCancel(context.Background())
 	go l.Run(ctx)
 	return l, probe, cancel
 }
 
-func expectNext[T any](t *testing.T, ch <-chan Event, match func(T) bool) {
+func expectNext[T any](t *testing.T, ch <-chan dto.Event, match func(T) bool) {
 	t.Helper()
 
 	wantType := reflect.TypeOf((*T)(nil)).Elem()
@@ -48,13 +49,13 @@ func TestPlayerJoinsIdleLobby(t *testing.T) {
 	l, p, cancel := newLobbyForTest(t)
 	defer cancel()
 
-	l.Post(Join{PlayerID: "p1"})
+	l.Post(dto.Join{PlayerID: "p1"})
 
-	expectNext[Joined](t, p.C, func(e Joined) bool {
+	expectNext[dto.Joined](t, p.C, func(e dto.Joined) bool {
 		return e.Slot == 0 && e.Mark == game.X
 	})
 
-	expectNext[LobbyStateChanged](t, p.C, func(e LobbyStateChanged) bool {
+	expectNext[dto.LobbyStateChanged](t, p.C, func(e dto.LobbyStateChanged) bool {
 		return e.State == WaitingForSecond
 	})
 }
@@ -64,23 +65,23 @@ func TestJoinFlow(t *testing.T) {
 	defer cancel()
 
 	t.Run("first join", func(t *testing.T) {
-		l.Post(Join{PlayerID: "p1"})
-		expectNext[Joined](t, p.C, func(e Joined) bool {
+		l.Post(dto.Join{PlayerID: "p1"})
+		expectNext[dto.Joined](t, p.C, func(e dto.Joined) bool {
 			return e.Slot == 0 && e.Mark == game.X
 		})
 
-		expectNext[LobbyStateChanged](t, p.C, func(e LobbyStateChanged) bool {
+		expectNext[dto.LobbyStateChanged](t, p.C, func(e dto.LobbyStateChanged) bool {
 			return e.State == WaitingForSecond
 		})
 	})
 
 	t.Run("second join", func(t *testing.T) {
-		l.Post(Join{PlayerID: "p2"})
-		expectNext[Joined](t, p.C, func(e Joined) bool {
+		l.Post(dto.Join{PlayerID: "p2"})
+		expectNext[dto.Joined](t, p.C, func(e dto.Joined) bool {
 			return e.Slot == 1 && e.Mark == game.O
 		})
 
-		expectNext[LobbyStateChanged](t, p.C, func(e LobbyStateChanged) bool {
+		expectNext[dto.LobbyStateChanged](t, p.C, func(e dto.LobbyStateChanged) bool {
 			return e.State == InProgress
 		})
 	})
@@ -90,25 +91,25 @@ func TestGameFullRejection(t *testing.T) {
 	l, p, cancel := newLobbyForTest(t)
 	defer cancel()
 
-	l.Post(Join{PlayerID: "p1"})
-	expectNext[Joined](t, p.C, func(e Joined) bool {
+	l.Post(dto.Join{PlayerID: "p1"})
+	expectNext[dto.Joined](t, p.C, func(e dto.Joined) bool {
 		return e.Slot == 0 && e.Mark == game.X
 	})
-	expectNext[LobbyStateChanged](t, p.C, func(e LobbyStateChanged) bool {
+	expectNext[dto.LobbyStateChanged](t, p.C, func(e dto.LobbyStateChanged) bool {
 		return e.State == WaitingForSecond
 	})
 
-	l.Post(Join{PlayerID: "p2"})
-	expectNext[Joined](t, p.C, func(e Joined) bool {
+	l.Post(dto.Join{PlayerID: "p2"})
+	expectNext[dto.Joined](t, p.C, func(e dto.Joined) bool {
 		return e.Slot == 1 && e.Mark == game.O
 	})
-	expectNext[LobbyStateChanged](t, p.C, func(e LobbyStateChanged) bool {
+	expectNext[dto.LobbyStateChanged](t, p.C, func(e dto.LobbyStateChanged) bool {
 		return e.State == InProgress
 	})
 
 	t.Run("reject third player", func(t *testing.T) {
-		l.Post(Join{PlayerID: "p3"})
-		expectNext[JoinRejected](t, p.C, func(e JoinRejected) bool {
+		l.Post(dto.Join{PlayerID: "p3"})
+		expectNext[dto.JoinRejected](t, p.C, func(e dto.JoinRejected) bool {
 			return e.Reason == "AlreadyStarted"
 		})
 	})
@@ -118,28 +119,28 @@ func TestInProgressLeave(t *testing.T) {
 	l, p, cancel := newLobbyForTest(t)
 	defer cancel()
 
-	l.Post(Join{PlayerID: "p1"})
-	expectNext[Joined](t, p.C, func(e Joined) bool {
+	l.Post(dto.Join{PlayerID: "p1"})
+	expectNext[dto.Joined](t, p.C, func(e dto.Joined) bool {
 		return e.Slot == 0 && e.Mark == game.X
 	})
-	expectNext[LobbyStateChanged](t, p.C, func(e LobbyStateChanged) bool {
+	expectNext[dto.LobbyStateChanged](t, p.C, func(e dto.LobbyStateChanged) bool {
 		return e.State == WaitingForSecond
 	})
 
-	l.Post(Join{PlayerID: "p2"})
-	expectNext[Joined](t, p.C, func(e Joined) bool {
+	l.Post(dto.Join{PlayerID: "p2"})
+	expectNext[dto.Joined](t, p.C, func(e dto.Joined) bool {
 		return e.Slot == 1 && e.Mark == game.O
 	})
-	expectNext[LobbyStateChanged](t, p.C, func(e LobbyStateChanged) bool {
+	expectNext[dto.LobbyStateChanged](t, p.C, func(e dto.LobbyStateChanged) bool {
 		return e.State == InProgress
 	})
 
-	l.Post(Leave{PlayerID: "p2"})
-	expectNext[Left](t, p.C, func(e Left) bool {
+	l.Post(dto.Leave{PlayerID: "p2"})
+	expectNext[dto.Left](t, p.C, func(e dto.Left) bool {
 		return e.Slot == 1
 	})
 
-	expectNext[Paused](t, p.C, func(e Paused) bool {
+	expectNext[dto.Paused](t, p.C, func(e dto.Paused) bool {
 		return e.MissingSlot == 1
 	})
 }
@@ -148,38 +149,38 @@ func TestReconnect(t *testing.T) {
 	l, p, cancel := newLobbyForTest(t)
 	defer cancel()
 
-	l.Post(Join{PlayerID: "p1"})
-	expectNext[Joined](t, p.C, func(e Joined) bool {
+	l.Post(dto.Join{PlayerID: "p1"})
+	expectNext[dto.Joined](t, p.C, func(e dto.Joined) bool {
 		return e.Slot == 0 && e.Mark == game.X
 	})
-	expectNext[LobbyStateChanged](t, p.C, func(e LobbyStateChanged) bool {
+	expectNext[dto.LobbyStateChanged](t, p.C, func(e dto.LobbyStateChanged) bool {
 		return e.State == WaitingForSecond
 	})
 
-	l.Post(Join{PlayerID: "p2"})
-	expectNext[Joined](t, p.C, func(e Joined) bool {
+	l.Post(dto.Join{PlayerID: "p2"})
+	expectNext[dto.Joined](t, p.C, func(e dto.Joined) bool {
 		return e.Slot == 1 && e.Mark == game.O
 	})
-	expectNext[LobbyStateChanged](t, p.C, func(e LobbyStateChanged) bool {
+	expectNext[dto.LobbyStateChanged](t, p.C, func(e dto.LobbyStateChanged) bool {
 		return e.State == InProgress
 	})
 
 	t.Run("reconnect", func(t *testing.T) {
-		l.Post(Leave{PlayerID: "p2"})
-		expectNext[Left](t, p.C, func(e Left) bool {
+		l.Post(dto.Leave{PlayerID: "p2"})
+		expectNext[dto.Left](t, p.C, func(e dto.Left) bool {
 			return e.Slot == 1
 		})
 
-		expectNext[Paused](t, p.C, func(e Paused) bool {
+		expectNext[dto.Paused](t, p.C, func(e dto.Paused) bool {
 			return e.MissingSlot == 1
 		})
 
-		l.Post(Join{PlayerID: "p2"})
-		expectNext[Reconnected](t, p.C, func(e Reconnected) bool {
+		l.Post(dto.Join{PlayerID: "p2"})
+		expectNext[dto.Reconnected](t, p.C, func(e dto.Reconnected) bool {
 			return e.Slot == 1
 		})
 
-		expectNext[Resumed](t, p.C, func(e Resumed) bool {
+		expectNext[dto.Resumed](t, p.C, func(e dto.Resumed) bool {
 			return true
 		})
 
@@ -191,36 +192,36 @@ func TestMove(t *testing.T) {
 	defer cancel()
 
 	t.Run("out of turn move", func(t *testing.T) {
-		l.Post(Move{
+		l.Post(dto.Move{
 			R:    0,
 			C:    0,
 			Mark: game.O,
 		})
 
-		expectNext[InvalidMove](t, p.C, func(e InvalidMove) bool {
+		expectNext[dto.InvalidMove](t, p.C, func(e dto.InvalidMove) bool {
 			return errors.Is(e.Err, game.ErrWrongTurn)
 		})
 	})
 
 	t.Run("initial move", func(t *testing.T) {
-		l.Post(Move{
+		l.Post(dto.Move{
 			R:    0,
 			C:    0,
 			Mark: game.X,
 		})
-		expectNext[ValidMove](t, p.C, func(e ValidMove) bool {
+		expectNext[dto.ValidMove](t, p.C, func(e dto.ValidMove) bool {
 			return e.Mark == game.X && e.R == 0 && e.C == 0
 		})
 	})
 
 	t.Run("move occupied spot", func(t *testing.T) {
-		l.Post(Move{
+		l.Post(dto.Move{
 			R:    0,
 			C:    0,
 			Mark: game.O,
 		})
 
-		expectNext[InvalidMove](t, p.C, func(e InvalidMove) bool {
+		expectNext[dto.InvalidMove](t, p.C, func(e dto.InvalidMove) bool {
 			return errors.Is(e.Err, game.ErrOccupied)
 		})
 	})

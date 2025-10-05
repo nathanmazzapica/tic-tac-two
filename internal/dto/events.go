@@ -1,7 +1,6 @@
-package lobby
+package dto
 
 import (
-	"github.com/nathanmazzapica/tic-tac-two/internal/game"
 	"time"
 )
 
@@ -9,7 +8,7 @@ type Event interface{ isEvent() }
 
 type Joined struct {
 	Slot int
-	Mark game.Mark
+	Mark int
 }
 
 func (Joined) isEvent() {}
@@ -27,7 +26,7 @@ type JoinRejected struct {
 func (JoinRejected) isEvent() {}
 
 type LobbyStateChanged struct {
-	State State
+	State int
 }
 
 func (LobbyStateChanged) isEvent() {}
@@ -57,15 +56,15 @@ func (StateChanged) isEvent() {}
 type ValidMove struct {
 	R    int `json:"r"`
 	C    int `json:"c"`
-	Mark game.Mark
+	Mark int `json:"mark"`
 }
 
 func (ValidMove) isEvent() {}
 
 type InvalidMove struct {
-	R   int `json:"r"`
-	C   int `json:"c"`
-	Err error
+	R   int   `json:"r"`
+	C   int   `json:"c"`
+	Err error `json:"err"`
 }
 
 func (InvalidMove) isEvent() {}
@@ -75,9 +74,9 @@ type Forfeited struct{}
 func (Forfeited) isEvent() {}
 
 type GameOver struct {
-	Method game.State
-	Winner game.Mark
-	Line   game.Line
+	Method int
+	Winner int
+	Line   [][2]int
 }
 
 func (GameOver) isEvent() {}

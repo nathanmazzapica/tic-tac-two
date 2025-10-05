@@ -1,6 +1,4 @@
-package lobby
-
-import "github.com/nathanmazzapica/tic-tac-two/internal/game"
+package dto
 
 type Command interface{ isCommand() }
 
@@ -17,9 +15,9 @@ type Leave struct {
 func (Leave) isCommand() {}
 
 type Move struct {
-	R    int       `json:"r"`
-	C    int       `json:"c"`
-	Mark game.Mark `json:"mark"`
+	R    int `json:"r"`
+	C    int `json:"c"`
+	Mark int `json:"mark"`
 }
 
 func (Move) isCommand() {}
